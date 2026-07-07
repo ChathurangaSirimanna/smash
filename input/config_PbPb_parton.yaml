@@ -1,0 +1,47 @@
+Logging:
+    default: INFO
+
+General:
+    Modus:          Collider
+    Time_Step_Mode: Fixed
+    Delta_Time:     0.05
+    End_Time:       20.0
+    Randomseed:     -1
+    Nevents:        10
+
+Output:
+    Output_Interval: 1.0
+    Particles:
+        Format: ["Oscar2013"]
+        Extended: True
+
+Modi:
+    Collider:
+        Projectile:
+            # Pb-208 valence content: u=290, d=334 (3*208=624 quarks total)
+            # Add a tunable gluon component (PDG 21) for high-energy PbPb.
+            Particles: {2: 290, 1: 334, 21: 300}
+            # Force Pb-208 Woods-Saxon geometry for a parton-only nucleus.
+            Radius: 6.67
+            Diffusiveness: 0.54
+            Saturation_Density: 0.16
+        Target:
+            Particles: {2: 290, 1: 334, 21: 300}
+            Radius: 6.67
+            Diffusiveness: 0.54
+            Saturation_Density: 0.16
+
+        # Set your beam energy here.
+        # Alternatives: E_Kin, E_Tot, or P_Lab (use one energy specification only).
+        Sqrtsnn: 1750.0
+        Impact:
+            Value: 0.0
+
+        # Fermi motion is defined for p/n only; keep it off for partonic nuclei.
+        Fermi_Motion: "off"
+
+Collision_Term:
+    Included_2to2: ["All"]
+    # Debug-only boost to make rare partonic interactions visible.
+    # Set back to 1.0 for physics production runs.
+    Cross_Section_Scaling: 1.0

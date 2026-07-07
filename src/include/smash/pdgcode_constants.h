@@ -117,6 +117,25 @@ constexpr int64_t hypertriton = 0x1010010030;
 /// Anti-Hypertriton
 constexpr int64_t antihypertriton = -0x1010010030;
 
+/*
+ * Constants representing PDG codes of partons.
+ */
+
+/// down quark
+constexpr int d = 0x1;
+/// up quark
+constexpr int u = 0x2;
+/// strange quark
+constexpr int s = 0x3;
+/// anti-down quark
+//constexpr int dbar = -0x1;
+/// anti-up quark
+//constexpr int ubar = -0x2;
+/// anti-strange quark
+//constexpr int sbar = -0x3;
+///gluon
+constexpr int g = 0x21;
+
 }  // namespace pdg
 
 /**

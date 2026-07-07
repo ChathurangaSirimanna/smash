@@ -377,6 +377,19 @@ class PdgCode {
             !is_nucleus());
   }
 
+   /// \return true if this is a quark.
+  inline bool is_quark() const {
+    //std::cout<<"quark is found..."<<std::endl;
+    const auto abs_code = std::abs(code());
+    return (abs_code == pdg::u || abs_code == pdg::d);
+  }
+
+  inline bool is_gluon() const {
+    //std::cout<<"gluon is found..."<<std::endl;
+    const auto abs_code = std::abs(code());
+    return (abs_code == pdg::g);
+  }
+
   /// \return true if this is a neutrino.
   inline bool is_neutrino() const {
     return (is_lepton() && digits_.n_J_ % 2 == 0);

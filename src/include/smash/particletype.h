@@ -200,6 +200,12 @@ class ParticleType {
   /// \copydoc PdgCode::is_lepton
   bool is_lepton() const { return pdgcode_.is_lepton(); }
 
+  /// \copydoc PdgCode::is_quark
+  bool is_quark() const { return pdgcode_.is_quark(); }
+
+  /// \copydoc PdgCode::is_gluon
+  bool is_gluon() const { return pdgcode_.is_gluon(); }
+
   /// \copydoc PdgCode::is_baryon
   bool is_baryon() const { return pdgcode_.is_baryon(); }
 

@@ -11,6 +11,7 @@
 
 #include "smash/clebschgordan.h"
 #include "smash/constants.h"
+#include "smash/fpenvironment.h"
 #include "smash/logging.h"
 #include "smash/parametrizations.h"
 #include "smash/pow.h"
@@ -947,6 +948,10 @@ CollisionBranchList CrossSections::two_to_two(
       // Pion Deuteron and Pion d' Scattering
       process_list = dpi_xx(included_2to2);
     }
+  } else if ((type_a.is_quark() || type_a.is_gluon()) &&
+             (type_b.is_quark() || type_b.is_gluon())) {
+    // Partonic Scattering (quark-quark, gluon-gluon, or quark-gluon)
+    process_list = parton_parton(included_2to2);
   }
   return process_list;
 }
@@ -2454,6 +2459,127 @@ CollisionBranchList CrossSections::dn_xx(
                                type_N.name(), produced_nucleus->name(), " at ",
                                sqrt_s_, " GeV, xs[mb] = ", xsection);
   }
+  return process_list;
+}
+
+CollisionBranchList CrossSections::parton_parton(
+    const ReactionsBitSet& included_2to2) const {
+  const ParticleType& type_a = incoming_particles_[0].type();
+  const ParticleType& type_b = incoming_particles_[1].type();
+  const PdgCode& pdg_a = type_a.pdgcode();
+  const PdgCode& pdg_b = type_b.pdgcode();
+
+  CollisionBranchList process_list;
+
+  // Check if this is a partonic collision
+  const bool is_qq = type_a.is_quark() && type_b.is_quark();
+  const bool is_gg = type_a.is_gluon() && type_b.is_gluon();
+  const bool is_qg = (type_a.is_quark() && type_b.is_gluon()) ||
+                     (type_a.is_gluon() && type_b.is_quark());
+
+  if (is_qq || is_gg || is_qg) {
+    /* NOTE: PartonicCS now provides full inelastic scattering support via
+     * sampleCollision(), which can handle:
+     *   - q + qbar → g + g (quark annihilation)
+     *   - g + g → q + qbar (gluon fusion)  
+     *   - elastic scattering with proper angular distributions
+     * 
+     * To use it for actual simulations:
+     * 1. Call sampleCollision() to get subprocess, final state, and momenta
+     * 2. Create CollisionBranch with the determined final state particles
+     * 
+     * Example usage (for reference):
+     *   PartonicCS partonicCS;
+     *   std::array<double, 4> p1 = {E1, px1, py1, pz1};
+     *   std::array<double, 4> p2 = {E2, px2, py2, pz2};
+     *   CollisionResult result = partonicCS.sampleCollision(kf1, kf2, p1, p2, Q2);
+     *   if (result.success) {
+     *     // result.kf3, result.kf4 = outgoing particle PDG codes
+     *     // result.p3, result.p4 = outgoing 4-momenta [GeV]
+     *     // result.isub = subprocess identifier
+     *     // result.that = momentum transfer [GeV²]
+     *   }
+     * 
+     * Current implementation: Uses sampleXS() for total cross section with
+     * elastic final states for compatibility with existing SMASH framework.
+     */
+    
+    // Use PartonicCS to compute partonic cross section
+    PartonicCS partonicCS;
+    
+    // Determine subprocess identifier based on collision type
+    int isub;
+    if (is_qq) {
+      isub = 1;  // q+q' or q+qbar scattering
+    } else if (is_gg) {
+      isub = 9;  // g+g scattering
+    } else {  // is_qg
+      isub = 6;  // q+g scattering
+    }
+    
+    int kf1 = pdg_a.code();
+    int kf2 = pdg_b.code();
+    double shat = sqrt_s_ * sqrt_s_;  // s in GeV²
+    double Q2 = shat;  // Use s as the scale
+    
+    // Minimum energy threshold for PartonicCS to avoid kinematic singularities
+    // PartonicCS internally requires sqrt_s >= 1 GeV (shat >= 1 GeV²)
+    const double min_sqrt_s = 1.0;  // GeV
+    
+    // Sample cross section using PartonicCS
+    double xsection = 0.0;
+    if (sqrt_s_ < min_sqrt_s) {
+      // Below threshold, use zero cross section
+      xsection = 0.0;
+      logg[LScatterAction].debug(
+          "Partonic collision ", type_a.name(), " + ", type_b.name(),
+          " below threshold: sqrt_s=", sqrt_s_, " < ", min_sqrt_s, " GeV");
+    } else {
+      try {
+        // Temporarily disable floating point traps for PartonicCS calculation
+        // PartonicCS may encounter kinematic singularities that produce NaN/Inf
+        // which we handle explicitly rather than trapping
+        double xs_raw;
+        double that_sampled, phi_sampled;
+        int isub_sampled;
+        {
+          DisableFloatTraps disable_fpe;
+          xs_raw = partonicCS.sampleXS(kf1, kf2, isub, shat, Q2,
+                                       that_sampled, phi_sampled, isub_sampled);
+        }  // FPE traps re-enabled here
+        
+        // Check if result is finite before converting units
+        if (std::isfinite(xs_raw) && xs_raw > 0.0) {
+          // Convert from GeV^-2 to mb (1 GeV^-2 = 0.3894 mb)
+          xsection = xs_raw * 0.3894;
+        } else {
+          xsection = 0.0;
+          logg[LScatterAction].debug(
+              "Partonic collision ", type_a.name(), " + ", type_b.name(),
+              " returned non-finite xs: xs_raw=", xs_raw);
+        }
+      } catch (const std::exception& e) {
+        logg[LCrossSections].warn(
+            "PartonicCS error in parton_parton: ", e.what(),
+            " for kf1=", kf1, " kf2=", kf2, " isub=", isub,
+            " sqrt_s=", sqrt_s_);
+        xsection = 0.0;  // set to zero on error
+      } catch (...) {
+        logg[LCrossSections].warn(
+            "Unknown error in PartonicCS for kf1=", kf1, " kf2=", kf2,
+            " isub=", isub, " sqrt_s=", sqrt_s_);
+        xsection = 0.0;
+      }
+    }
+
+    process_list.push_back(std::make_unique<CollisionBranch>(
+      type_a, type_b, xsection, ProcessType::TwoToTwo));
+
+    logg[LScatterAction].debug(type_a.name(), type_b.name(), " → ",
+      type_a.name(), type_b.name(), " at ",
+      sqrt_s_, " GeV, xs[mb] = ", xsection, " (isub=", isub, ")");
+  }
+
   return process_list;
 }
 

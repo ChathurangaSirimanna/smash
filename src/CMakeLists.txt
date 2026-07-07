@@ -200,6 +200,7 @@ set(smash_src
     configuration.cc
     crosssections.cc
     crosssectionsphoton.cc
+    partoniccs.cc
     customnucleus.cc
     decayaction.cc
     decayactionsfinder.cc

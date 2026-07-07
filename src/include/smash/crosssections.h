@@ -16,6 +16,7 @@
 #include "forwarddeclarations.h"
 #include "isoparticletype.h"
 #include "particles.h"
+#include "partoniccs.h"
 #include "potential_globals.h"
 #include "scatteractionsfinderparameters.h"
 #include "stringprocess.h"
@@ -490,6 +491,14 @@ class CrossSections {
    * \return List of all possible dN reactions with their cross sections
    */
   CollisionBranchList dn_xx(const ReactionsBitSet& included_2to2) const;
+
+  /**
+   * Find all partonic 2->2 processes (quark-quark, gluon-gluon, quark-gluon)
+   * using PartonicCS for cross section calculations.
+   * \param[in] included_2to2 Which 2->2 reactions are enabled?
+   * \return List of all possible partonic reactions with their cross sections
+   */
+  CollisionBranchList parton_parton(const ReactionsBitSet& included_2to2) const;
 
   /**
    * Parametrized cross section for πd→ πd' (mockup for πd→ πnp), πd̅→ πd̅' and
